@@ -1,8 +1,6 @@
 # Semantic Search
-![Preview](https://github.com/hundredblocks/semantic-search/blob/master/assets/image_search_cover.jpeg)
-
 This repository contains a barebones implementation of a semantic search engine. 
-The implementation is based on leveraging pre-trained embeddings from VGG16 (trained on Imagenet), and GloVe (trained on Wikipedia).
+The implementation is based on leveraging pre-trained embeddings from Resnet 101 (trained on Imagenet), and GloVe (trained on Wikipedia).
 
 It allows you to:
 - Find similar images to an input image
@@ -10,14 +8,10 @@ It allows you to:
 - Search through images using any word
 - Generate tags for any image
 
-See examples of usage by following along on this [notebook](http://insight.streamlit.io/0.13.3-8ErS/index.html?id=QAKzY9mLjr4WbTCgxz3XBX).
-Read more details about why and how you would use this in this blog [post](https://blog.insightdatascience.com/the-unreasonable-effectiveness-of-deep-learning-representations-4ce83fc663cf).
-
-
 ## Setup
 Clone the repository locally and create a virtual environment (conda example below):
 ```
-conda create -n semantic_search python=3.5 -y
+conda create -n semantic_search python=3.6 -y
 source activate semantic_search
 cd semantic_search
 pip install -r requirements.txt
@@ -93,21 +87,18 @@ After you've downloaded the pascal dataset, and placed vectors in `models/golve.
 We recommond first training for 2 epochs to evluate performance. Each epoch is around 20 minutes on CPU. Full training on this dataset is around 50 epochs. 
 ```
 python train.py \
-  --model_save_path my_model.hdf5 \
-  --checkpoint_path checkpoint.hdf5 \
   --glove_path models/glove.6B \
-  --dataset_path dataset \
-  --num_epochs 30
+  --dataset_path ./dataset/train 
 ```
 
 #### Index your images
 Index the image using the custom trained model to file to not repeatedly do this operation in the future
 ```
 python search.py \
-  --index_folder dataset \
+  --index_folder ./dataset/train \
   --features_path feat_300 \
   --file_mapping index_300 \
-  --model_path my_model.hdf5 \
+  --model_path ./models/resnet_101.pth \
   --index_boolean True \
   --features_from_new_model_boolean True \
   --glove_path models/glove.6B
@@ -142,7 +133,7 @@ After training and indexing the model, you can run the demo:
 python demo.py \
   --features_path feat_4096 \
   --file_mapping_path index_4096 \
-  --model_path my_model.hdf5 \
+  --model_path ./models/resnet_101.pth \
   --custom_features_path feat_300 \
   --custom_features_file_mapping_path index_300 \
   --search_key 872 \

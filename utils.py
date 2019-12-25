@@ -1,8 +1,12 @@
 import os
 import numpy as np
-from keras.applications.imagenet_utils import preprocess_input
-from keras.preprocessing import image
-
+from PIL import Image
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import torchvision
+from torchvision import datasets, models, transforms
 
 def load_paired_img_wrd(folder, word_vectors, use_word_vectors=True):
     '''
@@ -23,10 +27,9 @@ def load_paired_img_wrd(folder, word_vectors, use_word_vectors=True):
 
         for subf in subfiles:
             full_path = os.path.join(folder, cl, subf)
-            img = image.load_img(full_path, target_size=(224, 224))
-            x_raw = image.img_to_array(img)
-            x_expand = np.expand_dims(x_raw, axis=0)
-            x = preprocess_input(x_expand)
+            img = Image.open(full_path)
+            img = img.resize((224, 224))
+            x = np.asarray(img)
             image_list.append(x)
             if use_word_vectors:
                 labels_list.append(class_vector)
@@ -36,3 +39,17 @@ def load_paired_img_wrd(folder, word_vectors, use_word_vectors=True):
     img_data = img_data[0]
 
     return img_data, np.array(labels_list), paths_list
+
+def set_parameter_requires_grad(model, feature_extracting):
+    if feature_extracting:
+        for param in model.parameters():
+            param.requires_grad = False
+
+def load_model(model_path, number_class = 19):
+    model_ft = models.resnet101(pretrained=True)
+    set_parameter_requires_grad(model_ft, True)
+    num_ftrs = model_ft.fc.in_features
+    model_ft.fc = nn.Linear(num_ftrs, number_class)
+    input_size = 224
+    model_ft.load_state_dict(torch.load(model_path))
+    return model_ft

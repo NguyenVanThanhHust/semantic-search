@@ -1,7 +1,13 @@
-from keras.engine.saving import load_model
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
+import torchvision
+from torchvision import datasets, models, transforms
 from argparse import ArgumentParser
 
 from utils import load_paired_img_wrd
+from utils import load_model
 from vector_search import vector_search
 
 
@@ -58,7 +64,7 @@ def index_images(folder, features_path, mapping_path, model, features_from_new_m
         folder=folder, 
         word_vectors=word_vectors,
         use_word_vectors=features_from_new_model_boolean)
-    images_features, file_index = vector_search.generate_features(paths, model)
+    images_features, file_index = vector_search.generate_features(folder, model)
     vector_search.save_features(features_path, images_features, mapping_path, file_index)
     return images_features, file_index
 
@@ -124,7 +130,7 @@ if __name__ == "__main__":
 
     # Decide whether to use pre-trained VGG or custom model, if one was provided
     if model_path:
-        loaded_model = load_model(model_path)
+        loaded_model = load_model(model_path, number_class=19)
     else:
         loaded_model = vector_search.load_headless_pretrained_model()
 

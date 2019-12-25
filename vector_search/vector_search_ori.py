@@ -1,31 +1,37 @@
-from __future__ import print_function
-from __future__ import division
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
-import torchvision
-from torchvision import datasets, models, transforms
-import matplotlib.pyplot as plt
-import time
-import os
-import copy
-
 import logging
+import os
 import json
 import time
 
 import h5py
 import numpy as np
-from PIL import Image
 
 from annoy import AnnoyIndex
-import torchvision
+from keras import optimizers
+from keras.layers import Dense, BatchNormalization, Activation, Dropout
+from keras.losses import cosine_proximity
+from keras.preprocessing import image
+from keras.models import Model
+from keras.applications.vgg16 import VGG16
+from keras.applications.vgg16 import preprocess_input
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-def generate_features(image_folder, model):
+
+def load_headless_pretrained_model():
+    """
+    Loads the pretrained version of VGG with the last layer cut off
+    :return: pre-trained headless VGG16 Keras Model
+    """
+    print ("Loading headless pretrained model...")
+    pretrained_vgg16 = VGG16(weights='imagenet', include_top=True)
+    model = Model(inputs=pretrained_vgg16.input,
+                  outputs=pretrained_vgg16.get_layer('fc2').output)
+    return model
+
+
+def generate_features(image_paths, model):
     """
     Takes in an array of image paths, and a trained model.
     Returns the activations of the last layer for each image
@@ -35,32 +41,20 @@ def generate_features(image_folder, model):
     """
     print ("Generating features...")
     start = time.time()
-    data_transforms = transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-    
-    
     images = np.zeros(shape=(len(image_paths), 224, 224, 3))
     file_mapping = {i: f for i, f in enumerate(image_paths)}
+
     # We load all our dataset in memory because it is relatively small
     for i, f in enumerate(image_paths):
-        img = Image.open(f)
-        img = img.resize((224, 224))
-        x = np.asarray(img)
-        x_expand = np.expand_dims(x, axis=0)
+        img = image.load_img(f, target_size=(224, 224))
+        x_raw = image.img_to_array(img)
+        x_expand = np.expand_dims(x_raw, axis=0)
         images[i, :, :, :] = x_expand
 
     logger.info("%s images loaded" % len(images))
+    inputs = preprocess_input(images)
     logger.info("Images preprocessed")
-    images_features = list()
-    for i in range(len(image_paths)):
-        inputs = images[i, :, :, :]
-        input_tensor = torch.from_numpy(inputs)
-        image_feature = model.forward(input_tensor)
-        images_features.append(image_feature)
+    images_features = model.predict(inputs)
     end = time.time()
     logger.info("Inference done, %s Generation time" % (end - start))
     return images_features, file_mapping
@@ -157,6 +151,69 @@ def search_index_by_value(vector, feature_index, item_mapping, top_n=10):
     """
     distances = feature_index.get_nns_by_vector(vector, top_n, include_distances=True)
     return [[a, item_mapping[a], distances[1][i]] for i, a in enumerate(distances[0])]
+
+
+def get_weighted_features(class_index, images_features):
+    """
+    Use class weights to re-weigh our features
+    :param class_index: Which Imagenet class index to weigh our features on
+    :param images_features: Unweighted features
+    :return: Array of weighted activations
+    """
+    class_weights = get_class_weights_from_vgg()
+    target_class_weights = class_weights[:, class_index]
+    weighted = images_features * target_class_weights
+    return weighted
+
+
+def get_class_weights_from_vgg(save_weights=False, filename='class_weights'):
+    """
+    Get the class weights for the final predictions layer as a numpy martrix, and potentially save it to disk.
+    :param save_weights: flag to save to disk
+    :param filename: filename if we save to disc
+    :return: n_classes*4096 array of weights from the penultimate layer to the last layer in Keras' pretrained VGG
+    """
+    model_weights_path = os.path.join(os.environ.get('HOME'),
+                                      '.keras/models/vgg16_weights_tf_dim_ordering_tf_kernels.h5')
+    weights_file = h5py.File(model_weights_path, 'r')
+    weights_file.get('predictions').get('predictions_W_1:0')
+    final_weights = weights_file.get('predictions').get('predictions_W_1:0')
+
+    class_weights = np.array(final_weights)[:]
+    weights_file.close()
+    if save_weights:
+        np.save('%s.npy' % filename, class_weights)
+    return class_weights
+
+
+def setup_custom_model(intermediate_dim=2000, word_embedding_dim=300):
+    """
+    Builds a custom model taking the fc2 layer of VGG16 and adding two dense layers on top
+    :param intermediate_dim: dimension of the intermediate dense layer
+    :param word_embedding_dim: dimension of the final layer, which should match the size of our word embeddings
+    :return: a Keras model with the backbone frozen, and the upper layers ready to be trained
+    """
+    print ("Setting up custom model ...")
+    headless_pretrained_vgg16 = VGG16(weights='imagenet', include_top=True, input_shape=(224, 224, 3))
+    x = headless_pretrained_vgg16.get_layer('fc2').output
+
+    # We do not re-train VGG entirely here, just to get to a result quicker (fine-tuning the whole network would
+    # lead to better results)
+    for layer in headless_pretrained_vgg16.layers:
+        layer.trainable = False
+
+    image_dense1 = Dense(intermediate_dim, name="image_dense1")(x)
+    image_dense1 = BatchNormalization()(image_dense1)
+    image_dense1 = Activation("relu")(image_dense1)
+    image_dense1 = Dropout(0.5)(image_dense1)
+
+    image_dense2 = Dense(word_embedding_dim, name="image_dense2")(image_dense1)
+    image_output = BatchNormalization()(image_dense2)
+
+    complete_model = Model(inputs=[headless_pretrained_vgg16.input], outputs=image_output)
+    sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+    complete_model.compile(optimizer=sgd, loss=cosine_proximity)
+    return complete_model
 
 
 def load_glove_vectors(glove_dir, glove_name='glove.6B.300d.txt'):
