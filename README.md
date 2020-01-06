@@ -72,6 +72,11 @@ python search.py \
   --features_from_new_model_boolean False
 ```
 
+Example for seal project
+```
+python search.py --index_folder ../Datasets/images/train --features_path feat_4096 --file_mapping index_4096 --index_boolean True --features_from_new_model_boolean False
+```
+
 Then, you can search through your images using this index:
 ```
 python search.py \
