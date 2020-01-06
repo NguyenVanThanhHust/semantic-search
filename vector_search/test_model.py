@@ -36,7 +36,7 @@ if __name__ == "__main__":
     model_ft = models.resnet101(pretrained=True)
     set_parameter_requires_grad(model_ft, True)
     num_ftrs = model_ft.fc.in_features
-    model_ft.fc = nn.Linear(num_ftrs, 19)
+    model_ft.fc = nn.Linear(num_ftrs, 51)
     
     input_size = 224
     # Print the model we just instantiated
@@ -44,14 +44,6 @@ if __name__ == "__main__":
     model_ft.load_state_dict(torch.load(PATH))
     # Data augmentation and normalization for training
     # Just normalization for validation
-    data_transforms = {
-        transforms.Compose([
-        transforms.RandomResizedCrop(input_size),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
-    }
 
     # Detect if we have a GPU available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -59,14 +51,22 @@ if __name__ == "__main__":
 
     # Send the model to GPU
     model_ft = model_ft.to(device)
-    list_folder=next(os.walk("dataset/single_img"))[1]
-
+    list_folder=next(os.walk("./../Datasets/images/val"))[1]
+    list_folder = sorted(list_folder)
+    list_train = next(os.walk("./../Datasets/images/train"))[1]
+    list_train = sorted(list_train)
+    print("author: ")
+    print(list_folder)
+    total_img = 0
+    true_class = 0
+    false_class = 0
     for each_folder in list_folder:
-        folder_path=os.path.join("dataset/single_img", each_folder)
+        folder_path=os.path.join("./../Datasets/images/val", each_folder)
         list_img = next(os.walk(folder_path))[2]
         for each_img_name in list_img:
             img_path = os.path.join(folder_path, each_img_name)
             image = Image.open(img_path)
+            total_img += 1
             image = image.resize((224, 224)) 
             x = TF.to_tensor(image)
             x.unsqueeze_(0)
@@ -75,4 +75,12 @@ if __name__ == "__main__":
             result_cpu = result.to("cpu")
             result_np = result_cpu.detach().numpy()[:, :][0]
             max_pos = np.argmax(result_np)
-            print(max_pos)
+            if str(list_folder[max_pos]) == str(each_folder):
+                print("This is true: ", list_train[max_pos])
+                true_class += 1
+            else: 
+                print("This is false. True is: ", each_folder, " misrecognized to: ", list_folder[max_pos])
+                false_class += 1
+                
+    print("accuracy = ", str(true_class/total_img))
+    print("false ratio = ", str(false_class/total_img))

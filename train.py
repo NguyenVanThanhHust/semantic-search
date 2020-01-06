@@ -17,11 +17,11 @@ def build_parser():
 
 
 if __name__ == "__main__":
-    parser = build_parser()
-    options = parser.parse_args()
-    glove_path = options.glove_path
-    dataset_path = options.dataset_path
-    word_vectors = vector_search.load_glove_vectors(glove_path)
-    images, vectors, image_paths = load_paired_img_wrd(dataset_path, word_vectors)
+    # parser = build_parser()
+    # options = parser.parse_args()
+    # glove_path = options.glove_path
+    # dataset_path = options.dataset_path
+    # word_vectors = vector_search.load_glove_vectors(glove_path)
+    # images, vectors, image_paths = load_paired_img_wrd(dataset_path, word_vectors)
 
-    os.system("python ./vector_search/train_model.py --model_name resnet --dataset_path ./dataset --num_epochs 5 --batch_size 8 --feature_extract True")
+    os.system("python ./vector_search/train_model.py --model_name resnet --dataset_path ../Datasets/images --num_epochs 500 --batch_size 8 --feature_extract True")

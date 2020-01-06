@@ -97,6 +97,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             if phase == 'train' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
+                print("Save at epoch: ", epoch, " with acc: ", epoch_acc) 
                 torch.save(model.state_dict(), "models/resnet_101.pth")
 
         print()
