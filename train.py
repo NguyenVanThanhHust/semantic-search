@@ -23,5 +23,4 @@ if __name__ == "__main__":
     # dataset_path = options.dataset_path
     # word_vectors = vector_search.load_glove_vectors(glove_path)
     # images, vectors, image_paths = load_paired_img_wrd(dataset_path, word_vectors)
-
     os.system("python ./vector_search/train_model.py --model_name resnet --dataset_path ../Datasets/images --num_epochs 500 --batch_size 8 --feature_extract True")

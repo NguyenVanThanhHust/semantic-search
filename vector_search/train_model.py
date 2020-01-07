@@ -20,10 +20,34 @@ import numpy as np
 
 from annoy import AnnoyIndex
 from argparse import ArgumentParser
-
+from imgaug import augmenters as iaa
+import imgaug as ia
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+class ImgAugTransform:
+    def __init__(self):
+        self.aug = iaa.Sequential([
+            iaa.Scale((224, 224)),
+            iaa.Sometimes(0.25, iaa.GaussianBlur(sigma=(0, 3.0))),
+            iaa.Fliplr(0.5),
+            iaa.Affine(rotate=(-20, 20), mode='symmetric'),
+            iaa.Sometimes(0.25, iaa.OneOf([iaa.Dropout(p=(0, 0.1)),
+                                iaa.CoarseDropout(0.1, size_percent=0.5)])),
+            iaa.AddToHueAndSaturation(value=(-10, 10), per_channel=True),
+            iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 0.5))),
+            iaa.Affine(
+                scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+                translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                rotate=(-25, 25),
+                shear=(-8, 8)),
+            
+        ])
+      
+    def __call__(self, img):
+        img = np.array(img)
+        return self.aug.augment_image(img)
 
 def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_inception=False):
     since = time.time()
@@ -92,14 +116,14 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
+                torch.save(model.state_dict(), "models/resnet_101__" + str(epoch) +  ".pth")
+
             if phase == 'val':
                 val_acc_history.append(epoch_acc)
             if phase == 'train' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-                print("Save at epoch: ", epoch, " with acc: ", epoch_acc) 
-                torch.save(model.state_dict(), "models/resnet_101.pth")
-
+                
         print()
 
     time_elapsed = time.time() - since
@@ -128,15 +152,6 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
         set_parameter_requires_grad(model_ft, feature_extract)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, num_classes)
-        input_size = 224
-
-    elif model_name == "vgg":
-        """ VGG11_bn
-        """
-        model_ft = models.vgg11_bn(pretrained=use_pretrained)
-        set_parameter_requires_grad(model_ft, feature_extract)
-        num_ftrs = model_ft.classifier[6].in_features
-        model_ft.classifier[6] = nn.Linear(num_ftrs,num_classes)
         input_size = 224
 
     elif model_name == "densenet":
@@ -195,6 +210,9 @@ if __name__ == "__main__":
         'train': transforms.Compose([
             transforms.RandomResizedCrop(input_size),
             transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(hue=.05, saturation=.05),
+            ImgAugTransform(),
+            # lambda x: Image.fromarray(x),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
