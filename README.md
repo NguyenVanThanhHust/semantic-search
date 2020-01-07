@@ -78,6 +78,10 @@ python search.py \
   --features_from_new_model_boolean False
 ```
 
+```
+python search.py --index_folder ../Datasets/images/train --features_path feat_4096  --file_mapping index_4096 --index_boolean True --features_from_new_model_boolean False
+```
+
 Then, you can search through your images using this index:
 ```
 python search.py \
@@ -86,6 +90,12 @@ python search.py \
   --file_mapping index_4096 \
   --index_boolean False \
   --features_from_new_model_boolean False
+```
+```
+python search.py --input_image ../Datasets/images/val/DoumotoInshou/DoumotoInshou_2_157-0029.jpg --features_path feat_4096 --file_mapping index_4096 --index_boolean False --features_from_new_model_boolean False
+```
+```
+python search.py --input_image D:/SealProject/Datasets/images/train/DoumotoInshou/DoumotoInshou_1_150-0023.jpg --features_path feat_4096 --file_mapping index_4096 --index_boolean False --features_from_new_model_boolean False
 ```
 
 ### Training a custom model to map images to words
@@ -100,6 +110,10 @@ python train.py \
   --num_epochs 30
 ```
 
+```
+python train.py --model_save_path my_model.hdf5 --checkpoint_path checkpoint.hdf5  --glove_path models/glove.6B --dataset_path ../Datasets/images/train --num_epochs 30
+```
+
 #### Index your images
 Index the image using the custom trained model to file to not repeatedly do this operation in the future
 ```
@@ -112,17 +126,18 @@ python search.py \
   --features_from_new_model_boolean True \
   --glove_path models/glove.6B
 ```
+
+```
+python search.py --index_folder ../Datasets/images/train --features_path feat_300 --file_mapping index_300 --model_path my_model.hdf5 --index_boolean True --features_from_new_model_boolean True --glove_path models/glove.6B
+```
+
 #### Search for an image using image
 ```
-python search.py \
-  --input_image dataset/cat/2008_001335.jpg \
-  --features_path feat_300 \
-  --file_mapping index_300 \
-  --model_path my_model.hdf5 \
-  --index_boolean False \
-  --features_from_new_model_boolean True \
-  --glove_path models/glove.6B
+python search.py --input_image ../Datasets/images/val/DoumotoInshou/DoumotoInshou_2_157-0029.jpg --features_path feat_300 --file_mapping index_300 --model_path my_model.hdf5 --index_boolean False --features_from_new_model_boolean True --glove_path models/glove.6B
 ```  
+```
+python search.py --input_image D:/SealProject/Datasets/images/train/DoumotoInshou/DoumotoInshou_1_150-0023.jpg --features_path feat_300 --file_mapping index_300 --model_path my_model.hdf5 --index_boolean False --features_from_new_model_boolean True --glove_path models/glove.6B
+```
 
 #### Search for an image using words
 ```

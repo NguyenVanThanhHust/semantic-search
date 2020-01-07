@@ -224,7 +224,7 @@ def load_glove_vectors(glove_dir, glove_name='glove.6B.300d.txt'):
     :param glove_dir: directory in witch the glove file is located
     :return:
     """
-    f = open(os.path.join(glove_dir, glove_name))
+    f = open(os.path.join(glove_dir, glove_name), encoding = 'utf8')
     embeddings_index = {}
     for line in f:
         values = line.split()

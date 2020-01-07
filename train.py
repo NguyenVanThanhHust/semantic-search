@@ -1,3 +1,5 @@
+import os 
+os.environ['HDF5_DISABLE_VERSION_CHECK']='2'
 from keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
