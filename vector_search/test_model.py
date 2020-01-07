@@ -40,7 +40,7 @@ if __name__ == "__main__":
     
     input_size = 224
     # Print the model we just instantiated
-    PATH='models/resnet_101.pth'
+    PATH='models/resnet_101__281.pth'
     model_ft.load_state_dict(torch.load(PATH))
     # Data augmentation and normalization for training
     # Just normalization for validation
@@ -51,20 +51,20 @@ if __name__ == "__main__":
 
     # Send the model to GPU
     model_ft = model_ft.to(device)
-    list_folder=next(os.walk("./../Datasets/images/val"))[1]
-    list_folder = sorted(list_folder)
-    list_train = next(os.walk("./../Datasets/images/train"))[1]
-    list_train = sorted(list_train)
+    dir = "./../Datasets/images/val"
+    classes = [d.name for d in os.scandir(dir) if d.is_dir()]
+    classes.sort()
+    class_to_idx = {classes[i]: i for i in range(len(classes))}
     print("author: ")
-    print(list_folder)
+    print(classes)
     total_img = 0
     true_class = 0
     false_class = 0
-    for each_folder in list_folder:
-        folder_path=os.path.join("./../Datasets/images/val", each_folder)
-        list_img = next(os.walk(folder_path))[2]
+    for each_folder in classes:
+        folder_path = os.path.join(dir, each_folder)
+        list_img = [d.name for d in os.scandir(folder_path) if d.is_file()]
         for each_img_name in list_img:
-            img_path = os.path.join(folder_path, each_img_name)
+            img_path = os.path.join(dir, each_folder, each_img_name)
             image = Image.open(img_path)
             total_img += 1
             image = image.resize((224, 224)) 
@@ -73,14 +73,19 @@ if __name__ == "__main__":
             x = x.to(device)
             result = model_ft(x)
             result_cpu = result.to("cpu")
+            
             result_np = result_cpu.detach().numpy()[:, :][0]
+            # print("Result: ", result_np)
+            
             max_pos = np.argmax(result_np)
-            if str(list_folder[max_pos]) == str(each_folder):
-                print("This is true: ", list_train[max_pos])
-                true_class += 1
-            else: 
-                print("This is false. True is: ", each_folder, " misrecognized to: ", list_folder[max_pos])
-                false_class += 1
+            print("Result: ", max_pos)
+            
+    #         if str(classes[max_pos]) == str(each_folder):
+    #             print("This is true: ", classes[max_pos])
+    #             true_class += 1
+    #         else: 
+    #             print("This is false. True is: ", each_folder, " misrecognized to: ", classes[max_pos])
+    #             false_class += 1
                 
-    print("accuracy = ", str(true_class/total_img))
-    print("false ratio = ", str(false_class/total_img))
+    # print("accuracy = ", str(true_class/total_img))
+    # print("false ratio = ", str(false_class/total_img))

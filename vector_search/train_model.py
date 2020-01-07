@@ -6,6 +6,7 @@ import torch.optim as optim
 import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
+from torch.utils.data import WeightedRandomSampler
 import matplotlib.pyplot as plt
 import time
 import os
@@ -116,14 +117,14 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-                torch.save(model.state_dict(), "models/resnet_101__" + str(epoch) +  ".pth")
+                torch.save(model.state_dict(), "models/resnet_101_val_" + str(epoch) +  ".pth")
 
             if phase == 'val':
                 val_acc_history.append(epoch_acc)
             if phase == 'train' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-                
+                torch.save(model.state_dict(), "models/resnet_101_train_" + str(epoch) +  ".pth")
         print()
 
     time_elapsed = time.time() - since
@@ -224,12 +225,32 @@ if __name__ == "__main__":
         ]),
     }
 
+    print("Create Sample to handle unbalanced datasets...")
+    dir = "./../Datasets/images/train"
+    classes = [d.name for d in os.scandir(dir) if d.is_dir()]
+    classes.sort()
+    class_to_idx = [i for i in range(len(classes))]
+    total_sample = 0
+    num_sample_each_class = []
+    for each_class in classes:
+        class_path = os.path.join(dir, each_class)
+        img_names = [d.name for d in os.scandir(class_path) if d.is_file()]
+        num_sample = len(img_names)
+        num_sample_each_class.append(num_sample)
+    class_sample_count = np.array(num_sample_each_class)
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[t] for t in class_to_idx])
+    print("len: ", len(samples_weight))
+    for i in range(len(samples_weight)):
+        print("author: ", classes[i], " has weight: ", samples_weight[i])
+    samples_weight = torch.from_numpy(samples_weight)
+    samples_weigth = samples_weight.double()
+    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
     print("Initializing Datasets and Dataloaders...")
-
     # Create training and validation datasets
     image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
     # Create training and validation dataloaders
-    dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in ['train', 'val']}
+    dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, sampler = sampler, num_workers=4) for x in ['train', 'val']}
 
     # Detect if we have a GPU available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
