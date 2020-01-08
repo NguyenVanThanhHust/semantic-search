@@ -117,14 +117,14 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=25, is_ince
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-                torch.save(model.state_dict(), "models/resnet_101_val_" + str(epoch) +  ".pth")
+                torch.save(model.state_dict(), "models/resnet_50_val_" + str(epoch) +  ".pth")
 
             if phase == 'val':
                 val_acc_history.append(epoch_acc)
             if phase == 'train' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-                torch.save(model.state_dict(), "models/resnet_101_train_" + str(epoch) +  ".pth")
+                torch.save(model.state_dict(), "models/resnet_50_train_" + str(epoch) +  ".pth")
         print()
 
     time_elapsed = time.time() - since
@@ -149,19 +149,10 @@ def initialize_model(model_name, num_classes, feature_extract, use_pretrained=Tr
     if model_name == "resnet":
         """ Resnet101
         """
-        model_ft = models.resnet101(pretrained=use_pretrained)
+        model_ft = models.resnet50(pretrained=use_pretrained)
         set_parameter_requires_grad(model_ft, feature_extract)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = nn.Linear(num_ftrs, num_classes)
-        input_size = 224
-
-    elif model_name == "densenet":
-        """ Densenet
-        """
-        model_ft = models.densenet121(pretrained=use_pretrained)
-        set_parameter_requires_grad(model_ft, feature_extract)
-        num_ftrs = model_ft.classifier.in_features
-        model_ft.classifier = nn.Linear(num_ftrs, num_classes)
         input_size = 224
 
     else:
@@ -180,7 +171,7 @@ def build_parser():
     par.add_argument('--num_epochs', type=int,
                      dest='num_epochs', help='number of epochs to train on', default=50)
     par.add_argument('--batch_size', type=int,
-                     dest='batch_size', help='batch size to train on', default=8)
+                     dest='batch_size', help='batch size to train on', default=32)
     par.add_argument('--feature_extract', type=bool,
                      dest='feature_extract', help=' Flag for feature extracting. When False, we finetune the whole model', default=True)
     return par
@@ -197,6 +188,7 @@ if __name__ == "__main__":
     # Number of classes in the dataset
     num_classes = len(next(os.walk(os.path.join(data_dir, "train")))[1])
     print("number class: ", num_classes)
+    print("infor training: model name: ", model_name, " num_epochs: ", num_epochs, " batch size: ", batch_size)
     feature_extract = options.feature_extract
 
     # Initialize the model for this run
@@ -226,14 +218,13 @@ if __name__ == "__main__":
     }
 
     print("Create Sample to handle unbalanced datasets...")
-    dir = "./../Datasets/images/train"
-    classes = [d.name for d in os.scandir(dir) if d.is_dir()]
+    classes = [d.name for d in os.scandir(data_dir) if d.is_dir()]
     classes.sort()
     class_to_idx = [i for i in range(len(classes))]
     total_sample = 0
     num_sample_each_class = []
     for each_class in classes:
-        class_path = os.path.join(dir, each_class)
+        class_path = os.path.join(data_dir, each_class)
         img_names = [d.name for d in os.scandir(class_path) if d.is_file()]
         num_sample = len(img_names)
         num_sample_each_class.append(num_sample)
